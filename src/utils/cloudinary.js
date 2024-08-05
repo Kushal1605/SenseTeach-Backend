@@ -7,10 +7,10 @@ const cloudinary = new Cloudinary({
 });
 
 export const uploadImage = async (file) => {
-  // Upload the image to Cloudinary
   const uploadResponse = await cloudinary.uploader.upload(file, {
     folder: "senseteach",
   });
+  
   console.log(uploadResponse);
   return uploadResponse.secure_url;
 };

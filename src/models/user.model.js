@@ -22,6 +22,16 @@ const userSchema = new Schema(
       type: String,
       required: true,
       trim: true,
+      validate: {
+        validator: (value) => {
+          return (
+            value.length >= 8 && /\d/.test(value) && /[a-zA-Z]/.test(value) && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/.test(value)
+          );
+        },
+        message:
+          "Password must be at least 8 characters long, contain at least one number, one letter and one special character.",
+      },
+
     },
     avatar: {
       type: String,

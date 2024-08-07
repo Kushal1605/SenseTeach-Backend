@@ -111,6 +111,23 @@ export const loginUser = asyncWrapper(async (req, res) => {
     );
 });
 
+export const logoutUser = asyncWrapper(async (req, res) => {
+  const user = req.user;
+  user.refreshToken = "";
+
+  await user.save({ validateBeforeSave: false });
+  const options = {
+    httpOnly: true,
+    secure: true
+  }
+
+  res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(204, {}, "User logged out successfully."));
+});
+
 export const getCurrentUser = asyncWrapper(async (req, res) => {
   const user = req.user;
 

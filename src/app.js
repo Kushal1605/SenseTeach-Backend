@@ -19,6 +19,10 @@ app.use(express.static("public"));
 
 // Routes
 
+import userRoutes from "./routes/user.routes.js";
+
+app.use("/api/v1/users", userRoutes);
+
 // test
 app.get("/", (req, res) => {
   res.send("Server Responsed.");

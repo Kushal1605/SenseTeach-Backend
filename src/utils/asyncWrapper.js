@@ -3,7 +3,9 @@ const asyncWrapper = (requestHandler) => {
     try {
       await requestHandler(req, res, next);
     } catch (error) {
-      next(error);
+      res
+        .status(error.statusCode || 500)
+        .json({ success: false, message: error.message });
     }
   };
 };

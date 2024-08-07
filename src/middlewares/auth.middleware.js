@@ -1,11 +1,13 @@
 import jwt from "jsonwebtoken";
 import asyncWrapper from "../utils/asyncWrapper.js";
+import ApiError from "../utils/ApiError.js"
 
 export const verifyJWT = asyncWrapper(async (req, res, next) => {
   const accessToken =
-    req.cookies?.accessToken ||
-    req.header("Authorization").replace("Bearer ", "");
-
+  req.cookies?.accessToken ||
+  req.header("Authorization")?.replace("Bearer ", "");
+  
+  console.log("Inside verification.")
   if (!accessToken) {
     throw new ApiError(401, "Unauthorized request.");
   }

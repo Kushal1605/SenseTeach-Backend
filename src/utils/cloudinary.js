@@ -1,16 +1,11 @@
-import { v2 as cloudinary } from "cloudinary";
+import cloudinary from "../config/cloudinary";
 import fs from "fs";
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 export const uploadToCloudinary = async (file) => {
   try {
-    if (!file?.trim())
-      throw new ReferenceError("File not found or does not exists.");
+    if (!file?.trim()) {
+      throw new ReferenceError("File not found or does not exist.");
+    }
 
     const uploadResponse = await cloudinary.uploader.upload(file, {
       resource_type: "auto",
@@ -27,7 +22,7 @@ export const uploadToCloudinary = async (file) => {
     } else {
       fs.unlinkSync(file);
       console.log(
-        "Something went wrong while uploading file to cloudinary",
+        "Something went wrong while uploading file to Cloudinary",
         err
       );
     }
@@ -38,9 +33,8 @@ export const uploadToCloudinary = async (file) => {
 
 export const deleteFromCloudinary = async (url) => {
   try {
-    if (!url?.trim()) throw new ReferenceError("Invalid url or url not found.");
+    if (!url?.trim()) throw new ReferenceError("Invalid URL or URL not found.");
 
-    console.log("url")
     const splitUrl = url.split("/");
     const publicId = splitUrl.slice(-2)[0] + "/" + splitUrl.slice(-1)[0];
     console.log(publicId);
@@ -50,7 +44,7 @@ export const deleteFromCloudinary = async (url) => {
     return deleteResponse;
   } catch (err) {
     console.log(
-      "Something went wrong while deleting file from cloudinary",
+      "Something went wrong while deleting file from Cloudinary",
       err
     );
   }

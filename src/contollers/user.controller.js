@@ -1,9 +1,12 @@
 import asyncWrapper from "../utils/asyncWrapper.js";
 import { User } from "../models/user.model.js";
-import { uploadToCloudinary } from "../utils/cloudinary.js";
+import {
+  uploadToCloudinary,
+  deleteFromCloudinary,
+} from "../utils/cloudinary.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
-import mongoose from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 
 const generateAccessAndRefreshToken = async (user) => {
   try {
@@ -37,7 +40,8 @@ export const registerUser = asyncWrapper(async (req, res) => {
     throw new ApiError(409, "User already exists.");
   }
 
-  const localAvatarPath = req.file.avatar;
+  const localAvatarPath = req.file?.path;
+
   if (!localAvatarPath) {
     throw new ApiError(400, "Avatar is required");
   }
@@ -49,13 +53,21 @@ export const registerUser = asyncWrapper(async (req, res) => {
       "Something went wrong while uploading avatar to cloudinary."
     );
 
-  const newUser = await User.create({
+  let newUser = await User.create({
     username,
     fullName,
     email,
     password,
     avatar,
-  }).select("-password");
+  });
+
+  if (!newUser) {
+    const response = await deleteFromCloudinary(avatar.url);
+    console.log("Cloudinary delete response: ", response);
+    throw new ApiError(500, "Failed to register user.");
+  }
+
+  newUser = await User.findById(newUser._id).select("-password -refreshToken");
 
   res
     .status(201)
@@ -65,11 +77,11 @@ export const registerUser = asyncWrapper(async (req, res) => {
 export const loginUser = asyncWrapper(async (req, res) => {
   const { username, email, password } = req.body;
 
-  if (!username || !email) {
+  if (!username && !email) {
     throw new ApiError(400, "Username or email is required.");
   }
 
-  const user = await User.findOne({
+  let user = await User.findOne({
     $or: [{ username }, { email }],
   });
 
@@ -82,6 +94,7 @@ export const loginUser = asyncWrapper(async (req, res) => {
   }
 
   const isCorrectPassword = await user.isCorrectPassword(password);
+
   if (!isCorrectPassword) {
     throw new ApiError(401, "Incorrect Credentials.");
   }
@@ -90,9 +103,8 @@ export const loginUser = asyncWrapper(async (req, res) => {
     user
   );
 
-  const modifiedUser = await User.findById(user._id).select(
-    "-password -refreshToken"
-  );
+  user = await User.findById(user._id).select("-password -refreshToken");
+
   const options = {
     httpOnly: true,
     secure: true,
@@ -105,7 +117,7 @@ export const loginUser = asyncWrapper(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        { user: modifiedUser, accessToken, refreshToken },
+        { user: user, accessToken, refreshToken },
         "User logged in successfully."
       )
     );
@@ -118,8 +130,8 @@ export const logoutUser = asyncWrapper(async (req, res) => {
   await user.save({ validateBeforeSave: false });
   const options = {
     httpOnly: true,
-    secure: true
-  }
+    secure: true,
+  };
 
   res
     .status(200)
@@ -141,6 +153,10 @@ export const getUserById = asyncWrapper(async (req, res) => {
 
   if (!userId) {
     throw new ApiError(400, "User id is required.");
+  }
+
+  if (!isValidObjectId(userId)) {
+    throw new ApiError(400, "Invalid user id.");
   }
 
   const user = await User.findById(userId).select("-password -refreshToken");
@@ -172,7 +188,7 @@ export const refreshAccessToken = asyncWrapper(async (req, res) => {
   const user = await User.findById(decodedClientRefreshToken?.id);
 
   if (!user) {
-    throw new ApiError(404, "User does not exist with the given Id");
+    throw new ApiError(404, "User not found.");
   }
 
   if (user.refreshToken !== clientRefreshToken) {
@@ -203,6 +219,10 @@ export const refreshAccessToken = asyncWrapper(async (req, res) => {
 
 export const updateUserProfile = asyncWrapper(async (req, res) => {
   const { fullName, email, contact } = req.body;
+
+  if (!fullName && !email && !contact) {
+    throw new ApiError(400, "No data provided.");
+  }
   const fieldsToBeUpdated = {};
 
   if (fullName) {
@@ -231,10 +251,17 @@ export const updateUserProfile = asyncWrapper(async (req, res) => {
 });
 
 export const updateUserAvatar = asyncWrapper(async (req, res) => {
-  const localAvatarPath = req.file.avatar;
+  const localAvatarPath = req.file?.path;
 
   if (!localAvatarPath) {
     throw new ApiError(400, "Avatar is required");
+  }
+
+  const existingAvatar = req.user.avatar;
+  const response = await deleteFromCloudinary(existingAvatar);
+
+  if (!response) {
+    throw new ApiError(500, "Failed to delete from cloudinary.");
   }
 
   const avatar = await uploadToCloudinary(localAvatarPath);
@@ -249,7 +276,11 @@ export const updateUserAvatar = asyncWrapper(async (req, res) => {
     req.user._id,
     { $set: { avatar } },
     { new: true }
-  ).select("-password refreshToken");
+  ).select("-password -refreshToken");
+
+  if (!modifiedUser) {
+    throw new ApiError(500, "Something went wrong while updating avatar.");
+  }
 
   res
     .status(200)
@@ -265,18 +296,25 @@ export const updateUserPassword = asyncWrapper(async (req, res) => {
     throw new ApiError(400, "Password and new password are required.");
   }
 
-  const user = req.user;
+  const user = await User.findById(req.user._id);
   const isCorrectPassword = await user.isCorrectPassword(password);
 
   if (!isCorrectPassword) {
     throw new ApiError(401, "Incorrect Old Password.");
   }
 
-  const modifiedUser = await User.findByIdAndUpdate(
-    req.user._id,
-    { $set: { password: newPassword } },
-    { new: true }
-  ).select("-password -refreshToken");
+  user.password = newPassword;
+  await user.save();
+
+  const modifiedUser = await User.findById(req.user._id).select(
+    "-password -refreshToken"
+  );
+
+  if (!modifiedUser) {
+    user.password = password;
+    await user.save();
+    throw new ApiError(500, "Something went wrong while updating the password");
+  }
 
   res
     .status(200)

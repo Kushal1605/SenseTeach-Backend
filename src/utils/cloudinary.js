@@ -1,12 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
 export const uploadToCloudinary = async (file) => {
   try {
     if (!file?.trim())
@@ -18,12 +12,12 @@ export const uploadToCloudinary = async (file) => {
       secure_url: true,
     });
 
-    console.log("Upload response: ", uploadResponse);
     fs.unlinkSync(file);
+
     return uploadResponse.secure_url;
   } catch (err) {
     if (err instanceof ReferenceError) {
-      console.log(err);
+      console.log("File not found.", err);
     } else {
       fs.unlinkSync(file);
       console.log(
@@ -40,13 +34,13 @@ export const deleteFromCloudinary = async (url) => {
   try {
     if (!url?.trim()) throw new ReferenceError("Invalid url or url not found.");
 
-    console.log("url")
     const splitUrl = url.split("/");
-    const publicId = splitUrl.slice(-2)[0] + "/" + splitUrl.slice(-1)[0];
-    console.log(publicId);
+    const publicId =
+      splitUrl.slice(-2)[0] +
+      "/" +
+      splitUrl.slice(-1)[0].substring(0, splitUrl.slice(-1)[0].length - 4);
 
     const deleteResponse = await cloudinary.uploader.destroy(publicId);
-    console.log(deleteResponse);
     return deleteResponse;
   } catch (err) {
     console.log(

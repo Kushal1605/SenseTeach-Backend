@@ -22,16 +22,15 @@ const userSchema = new Schema(
       type: String,
       required: true,
       trim: true,
-      validate: {
-        validator: (value) => {
-          return (
-            value.length >= 8 && /\d/.test(value) && /[a-zA-Z]/.test(value) && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/.test(value)
-          );
-        },
-        message:
-          "Password must be at least 8 characters long, contain at least one number, one letter and one special character.",
-      },
-
+      // validate: {
+      //   validator: (value) => {
+      //     return (
+      //       value.length >= 8 && /\d/.test(value) && /[a-zA-Z]/.test(value) && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/.test(value)
+      //     );
+      //   },
+      //   message:
+      //     "Password must be at least 8 characters long, contain at least one number, one letter and one special character.",
+      // },
     },
     avatar: {
       type: String,
@@ -63,13 +62,13 @@ const userSchema = new Schema(
   { timestamps: true }
 );
 
-userSchema.pre("save", function () {
+userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
-  this.password = bcrypt.hash(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 10);
 });
 
-userSchema.methods.isCorrectPassword = function (password) {
-  return bcrypt.compare(password, this.password);
+userSchema.methods.isCorrectPassword = async function (password) {
+  return await bcrypt.compare(password, this.password);
 };
 
 userSchema.methods.generateAccessToken = function () {

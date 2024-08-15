@@ -10,6 +10,14 @@ const otpSchema = new Schema({
     type: String,
     required: true,
   },
+  secret: {
+    type: String, 
+    required: true,
+  },
+  counter: {
+    type: Number,
+    required: true,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

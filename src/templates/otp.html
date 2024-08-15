@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+      }
+      .email-container {
+        max-width: 600px;
+        margin: 20px auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      .email-header {
+        background-color: #007bff;
+        color: #ffffff;
+        text-align: center;
+        padding: 20px;
+        font-size: 24px;
+        font-weight: bold;
+      }
+      .email-body {
+        padding: 20px;
+        color: #333333;
+        line-height: 1.6;
+      }
+      .email-body h2 {
+        color: #007bff;
+        margin-bottom: 10px;
+      }
+      .otp-code {
+        display: block;
+        font-size: 24px;
+        font-weight: bold;
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        text-align: center;
+        margin: 20px 0;
+        color: #007bff;
+      }
+      .email-footer {
+        background-color: #f4f4f4;
+        color: #888888;
+        text-align: center;
+        padding: 20px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <!-- Header -->
+      <div class="email-header">Your OTP Code</div>
+
+      <!-- Body -->
+      <div class="email-body">
+        <h2>Hello, [User's Name]!</h2>
+        <p>
+          Your OTP (One-Time Password) for [Service/Website Name] is below.
+          Please enter this code to complete your verification process.
+        </p>
+        <p class="otp-code">[OTP Code]</p>
+        <p>
+          The OTP is valid for the next 10 minutes. If you did not request this
+          code, please disregard this email.
+        </p>
+        <p>
+          If you need further assistance, feel free to contact our support team.
+        </p>
+        <p>
+          Best Regards,<br />
+          The [Company Name] Team
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div class="email-footer">
+        &copy; 2024 [Company Name]. All rights reserved.<br />
+        You are receiving this email because you initiated a request for OTP on
+        [Service/Website Name].
+      </div>
+    </div>
+  </body>
+</html>

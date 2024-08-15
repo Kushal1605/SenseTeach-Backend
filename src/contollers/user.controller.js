@@ -7,6 +7,12 @@ import {
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import mongoose, { isValidObjectId } from "mongoose";
+import { hotp } from "otplib";
+import crypto from "crypto";
+import { OTP } from "../models/otp.model.js";
+import path from "path";
+import fs from "fs";
+import { transporter } from "../config/nodemailer.js";
 
 const generateAccessAndRefreshToken = async (user) => {
   try {
@@ -438,4 +444,136 @@ export const getUserCreatedClasses = asyncWrapper(async (req, res) => {
       },
     },
   ]);
+});
+
+export const generateAndSendOTP = asyncWrapper(async (req, res) => {
+  let { username, email } = req.body;
+  if (!username && !email) {
+    throw new ApiError(400, "No username or email.");
+  }
+
+  const user = await User.findOne({ $or: [{ username }, { email }] });
+  if (!user) {
+    throw new ApiError(404, "User not found.");
+  }
+
+  const secret = crypto.randomBytes(20).toString("base64");
+  if (!secret) {
+    throw new ApiError(500, "Something went wrong while generating secret.");
+  }
+
+  const counter = Date.now();
+  const otp = hotp.generate(secret, counter);
+  if (!otp) {
+    throw new ApiError(500, "Unable to generate OTP.");
+  }
+
+  let Otp = await OTP.findOne({
+    user: new mongoose.Types.ObjectId(user._id),
+  });
+
+  if (Otp) {
+    await OTP.findByIdAndUpdate(existingOtp._id, {
+      $set: {
+        counter,
+        secret,
+        otp,
+      },
+    });
+  } else {
+    Otp = await OTP.create({
+      userId: user._id,
+      counter,
+      otp,
+      secret,
+    });
+  }
+
+  if (!Otp) {
+    throw new ApiError(500, "Failed to save OTP.");
+  }
+
+  if (!email) {
+    email = user.email;
+  }
+
+  const fullName = user.fullName;
+  const currentWorkDirectory = process.cwd();
+  const templatePath = path.join(
+    currentWorkDirectory,
+    "/src/templates/otp.html"
+  );
+
+  const otpTemplate = fs.readFileSync(templatePath);
+  const mailOptions = {
+    from: `Kushal Gupta <${process.env.NODEMAILER_USER}>`,
+    to: [{ name: fullName, address: email }],
+    subject: "Password Reset Request",
+    text: `Your OTP code is ${otp}`,
+    html: otpTemplate,
+  };
+
+  const response = await transporter.sendMail(mailOptions);
+  if (!response) {
+    await OTP.findByIdAndDelete(Otp._id);
+    throw new ApiError(500, "Could not sent otp to user.");
+  }
+
+  const token = await jwt.sign(
+    {
+      userId: user._id,
+      otpId: Otp._id,
+    },
+    process.env.TOKEN_SECRET,
+    {
+      expiresIn: process.env.TOKEN_EXPIRY_TIME,
+    }
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  res
+    .status(201)
+    .cookie("token", token, options)
+    .json(new ApiResponse(201, {}, "OTP send successfully."));
+});
+
+export const verifyOTP = asyncWrapper(async (req, res) => {
+  const token = req.cookie("token") || req.header("Token-Auth");
+
+  if (!token) {
+    throw new ApiError(409, "Request time out.");
+  }
+
+  const decodedToken = await jwt.verify(token, process.env.TOKEN_SECRET);
+  const Otp = await OTP.findById(decodedToken?._id);
+
+  if (!Otp) {
+    throw new ApiError(409, "Otp is expired or Otp not found.");
+  }
+
+  const { inputOtp } = req.body;
+
+  if (!inputOtp) {
+    throw new ApiError(400, "OTP is required.");
+  }
+
+  if (OTP.otp === inputOtp) {
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    res
+      .status(200)
+      .clearCookie("token", options)
+      .json(
+        new ApiResponse(200, {}, "Otp is correct. Proceed to password reset.")
+      );
+  } else {
+    res.status(301).json(new ApiResponse(300, {}, "Incorrect Otp."));
+  }
 });
